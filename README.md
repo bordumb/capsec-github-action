@@ -10,7 +10,7 @@ on: [pull_request]
 
 permissions:
   contents: read
-  security-events: write  # Required for SARIF upload
+  security-events: write   # Required for SARIF upload
   pull-requests: write     # Required for PR review comments
 
 jobs:
@@ -109,4 +109,4 @@ jobs:
 
 ## License
 
-MIT
+Apache 2.0
