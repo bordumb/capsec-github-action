@@ -11,6 +11,7 @@ What it does:
     2. Checks that the git tag doesn't already exist on GitHub
     3. Creates a git tag v{version} and pushes it to origin
     4. Updates the floating major tag (v1) to point to the new release
+    5. Creates a GitHub Release with auto-generated notes (requires `gh` CLI)
 
 The floating major tag (v1) is how users reference the action:
     uses: bordumb/capsec-github-action@v1
@@ -131,6 +132,7 @@ def main() -> None:
     if not push:
         print(f"\nDry run: would create and push tag {tag}")
         print(f"         would update floating tag {major_tag} -> {tag}")
+        print(f"         would create GitHub Release {tag}")
         print("Run with --push to execute.")
         return
 
@@ -175,8 +177,21 @@ def main() -> None:
         print(f"\nERROR: git push {major_tag} failed (exit {result.returncode})", file=sys.stderr)
         sys.exit(1)
 
+    # Create GitHub Release
+    print(f"Creating GitHub Release {tag}...", flush=True)
+    result = subprocess.run(
+        ["gh", "release", "create", tag, "--title", tag, "--generate-notes"],
+        cwd=REPO_ROOT,
+    )
+    if result.returncode != 0:
+        print(f"\nERROR: gh release create failed (exit {result.returncode})", file=sys.stderr)
+        print("Tag was pushed successfully. Create the release manually with:", file=sys.stderr)
+        print(f"  gh release create {tag} --title {tag} --generate-notes", file=sys.stderr)
+        sys.exit(1)
+
     print(f"\nDone.")
     print(f"  Version tag: {tag}")
+    print(f"  Release:     https://github.com/{GITHUB_REPO}/releases/tag/{tag}")
     print(f"  Floating:    {major_tag} -> {tag}")
     print(f"  Users reference: uses: {GITHUB_REPO}@{major_tag}")
 
