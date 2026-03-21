@@ -35,6 +35,12 @@ inputs:
   reviewdog-version:
     description: 'Version of reviewdog to install'
     default: 'latest'
+  only:
+    description: 'Only scan these crates (comma-separated). Maps to --only flag.'
+    default: ''
+  skip:
+    description: 'Skip these crates (comma-separated). Maps to --skip flag.'
+    default: ''
   install-from:
     description: 'Install method: "crates-io" (cargo install) or "git" (from repository)'
     default: 'crates-io'
@@ -92,6 +98,14 @@ runs:
       run: |
         SARIF_FILE="${RUNNER_TEMP:-/tmp}/capsec-results.sarif"
         AUDIT_ARGS="--format sarif --fail-on ${{ inputs.fail-on }}"
+
+        # Crate filtering
+        if [ -n "${{ inputs.only }}" ]; then
+          AUDIT_ARGS="$AUDIT_ARGS --only ${{ inputs.only }}"
+        fi
+        if [ -n "${{ inputs.skip }}" ]; then
+          AUDIT_ARGS="$AUDIT_ARGS --skip ${{ inputs.skip }}"
+        fi
 
         # Determine if we should diff against baseline
         USE_DIFF="false"
