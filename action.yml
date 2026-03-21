@@ -117,14 +117,22 @@ runs:
 
         # Handle baseline
         BASELINE_PATH="${{ inputs.baseline }}"
+        HAVE_BASELINE="false"
         if [ "$USE_DIFF" = "true" ] && [ -n "$BASELINE_PATH" ]; then
           # Fetch baseline from base branch for accurate diffing
           BASE_BASELINE="${RUNNER_TEMP:-/tmp}/capsec-base-baseline.json"
           if git show "origin/${{ github.base_ref }}:${BASELINE_PATH}" > "$BASE_BASELINE" 2>/dev/null; then
             echo "Using baseline from base branch: ${{ github.base_ref }}"
-            AUDIT_ARGS="$AUDIT_ARGS --diff --baseline"
+            cp "$BASE_BASELINE" "$BASELINE_PATH"
+            AUDIT_ARGS="$AUDIT_ARGS --diff"
+            HAVE_BASELINE="true"
+          elif [ -f "$BASELINE_PATH" ]; then
+            echo "Using baseline from current branch (not found on base branch)"
+            AUDIT_ARGS="$AUDIT_ARGS --diff"
+            HAVE_BASELINE="true"
           else
-            echo "No baseline found on base branch, running full audit"
+            echo "No baseline found — skipping diff, running informational audit"
+            echo "::notice::No capsec baseline found. First run will be informational only. Commit a .capsec-baseline.json to enable regression detection."
           fi
         fi
 
@@ -148,6 +156,13 @@ runs:
         if [ "$AUDIT_EXIT" -eq 2 ]; then
           echo "::error::cargo capsec audit failed with a runtime error (exit code 2)"
           exit 1
+        fi
+
+        # If diff was requested but no baseline exists, treat as informational (don't fail)
+        if [ "$USE_DIFF" = "true" ] && [ "$HAVE_BASELINE" = "false" ] && [ "$AUDIT_EXIT" -eq 1 ]; then
+          echo "::notice::Audit found $FINDING_COUNT findings but no baseline exists for diffing. Not failing — commit a baseline to enable regression detection."
+          AUDIT_EXIT=0
+          echo "exit-code=0" >> "$GITHUB_OUTPUT"
         fi
 
         echo "Audit complete: $FINDING_COUNT findings (exit code $AUDIT_EXIT)"
